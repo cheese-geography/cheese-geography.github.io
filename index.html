@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A Geography of Name-Protected Cheese</title>
+<title>Name-Protected Cheese Geography</title>
 <link rel="icon" type="image/png" href="favicon.ico">
 <link rel="stylesheet" href="resources/leaflet/leaflet.css">
-<link href="https://googleapis.com" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #ffffff;
     --ink: #111111;
     --soft: #6e6e6e;
-    --faint: #7a1d2e; /* #b3b3b3;*/
+    --faint: #b3b3b3;
     --line: #ececec;
     --wine: #7a1d2e;
     --cheese: #a78230;
@@ -24,7 +26,7 @@
   html, body { height: 100%; margin: 0; }
 
   body {
-    font-family: 'EB Garamond', Garamond, 'Times New Roman', serif;
+    font-family: 'Noto Serif', 'Times New Roman', serif;
     background: var(--bg);
     color: var(--ink);
     font-weight: 400;
@@ -48,7 +50,7 @@
   }
   
   #quiz {
-    flex: 0 0 clamp(357px, 32vw, 560px);
+    flex: 0 0 clamp(357px, 33vw, 560px);
     height: 100%;
     min-height: 0;
     display: flex;
@@ -104,15 +106,32 @@
 
   .progress {
     flex: 0 0 auto;
-    height: 1px;
+    height: 2px;
     background: var(--line);
     overflow: hidden;
   }
-  .progress-bar {
-    height: 100%;
-    background: var(--ink);
-    width: 0;
-    transition: width 0.4s ease;
+
+  @property --scorePercent {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: 0%;
+  }
+
+  @property --progressPercent {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: 0%;
+  }
+  .progress-fill {
+  width: 100%;
+  height: 100%;
+  transition: --scorePercent 0.4s ease, --progressPercent 0.4s ease, width 0.4s ease;
+  background-image: linear-gradient(
+      to right,
+      var(--cheese) 0%, var(--cheese) var(--scorePercent),
+      var(--faint) var(--scorePercent), var(--faint) var(--progressPercent),
+      var(--bg) var(--progressPercent), var(--bg) 100%
+    );
   }
 
   .prompt {
@@ -177,7 +196,6 @@
     font-size: 13px;
     color: var(--soft);
     letter-spacing: 0.12em;
-    text-transform: uppercase;
   }
   .map-toolbar .sep {
     display: inline-block;
@@ -260,6 +278,7 @@
   .leaflet-bar a {
     border-bottom-color: var(--line) !important;
   }
+  
   .leaflet-control-attribution {
     font-size: 10px;
     background: rgba(255, 255, 255, 0.78) !important;
@@ -493,15 +512,15 @@
   .result.hidden { display: none; }
   .result .result-label {
     font-size: 16px;
-    color: var(--cheese);
+    color: var(--ink);
     letter-spacing: 0.14em;
     text-transform: uppercase;
     margin: 0 0 16px;
   }
   .result .score-big {
     font-size: 68px;
-    font-weight: 300;
-    color: var(--ink);
+    font-weight: 200;
+    color: var(--cheese);
     margin: 0 0 28px;
     letter-spacing: -0.035em;
   }
@@ -597,11 +616,11 @@
   }
 
   select {
-  font-family: 'EB Garamond', Garamond, 'Times New Roman', serif;
+  font-family: 'Noto Serif', 'Times New Roman', serif;
   }
 
   option {
-  font-family: 'EB Garamond', Garamond, 'Times New Roman', serif;
+  font-family: 'Noto Serif', 'Times New Roman', serif;
   }
 </style>
 </head>
@@ -609,7 +628,7 @@
   <div class="app">
     <aside id="quiz">
       <header>
-        <h1>A Geography of Name-Protected Cheese</h1>
+        <h1>Name-Protected Cheese Geography</h1>
         <p>Select where the cheese is from on the map.</p>
       </header>
 
@@ -645,16 +664,15 @@
     <main class="map-area">
       <div class="map-toolbar">
         <label class="region-picker">
-          Cheese List:
           <select id="list-select" aria-label="Cheese list filter"></select>
         </label>
-        <span class="status-inline">
-          <span id="round-counter">Round 1 / 10</span>
-          <span class="sep"></span>
-          <span id="score-counter">Score 0</span>
+        <span class="status-inline" style="text-align: right;">
+          <span id="round-counter">1 / 10</span>
+          <br>
+          <span id="score-counter" >0 pts</span>
         </span>
       </div>
-      <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+      <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
       <div id="map"></div>
       <div id="continue-hint" class="continue-hint" aria-hidden="true">Tap or press space to continue...</div>
     </main>
@@ -748,12 +766,22 @@ function scoringDistanceMeters(guess, target, region) {
 }
 
 function scoreFor(distKm, inside) {
-  if (inside)        return { pts: 100, label: "Bullseye!", cls: "perfect" };
-  if (distKm <= 10)  return { pts: 100, label: "Close enough.", cls: "perfect" };
-  if (distKm <= 50)  return { pts: Math.round(100 - distKm*0.4), label: "Very close.", cls: "close" };
-  if (distKm <= 200) return { pts: Math.round(80 - (distKm-50)*0.2), label: "In the neighborhood.", cls: "close" };
-  if (distKm <= 500) return { pts: Math.max(0, Math.round(30 - (distKm-200)*0.1)), label: "Far afield.", cls: "far" };
+  if (inside)        return { pts: 1000, label: "Bullseye!", cls: "perfect" };
+  if (distKm <= 10)  return { pts: 1000, label: "Close enough.", cls: "perfect" };
+  if (distKm <= 50)  return { pts: Math.round(10*(100 - distKm*0.4)), label: "Very close.", cls: "close" };
+  if (distKm <= 200) return { pts: Math.round(10*(80 - (distKm-50)*0.2)), label: "In the neighborhood.", cls: "close" };
+  if (distKm <= 500) return { pts: Math.max(0, Math.round(10*(30 - (distKm-200)*0.1))), label: "Far afield.", cls: "far" };
   return { pts: 0, label: "Way off.", cls: "far" };
+}
+
+function updateProgressBar() {
+
+  const scorePercent = (score / (1000 * order.length)) * 100
+  const progressPercent = (current / order.length) * 100
+  const progressFill = document.querySelector('.progress-fill')
+
+  progressFill.style.setProperty('--progressPercent', `${progressPercent}%`);
+  progressFill.style.setProperty('--scorePercent', `${scorePercent}%`);
 }
 
 const QUIZ_SIZE = 10;
@@ -776,29 +804,24 @@ function imagesFor(r) {
 let selectedList = null;
 
 const tileLayers = {
-  /*This tileset was super garish. A better topo should be found.*/
-  /*"Terrain": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: 'Map data © <a href="https://www.openstreetmap.org/copyright">OSM</a>, SRTM | Style © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
-    maxZoom: 17,
-  }),*/
-  "Standard": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a>, © <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20,
+  "Topographical": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+    maxZoom: 19
   }),
   "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, GIS Community',
     maxZoom: 19,
-  }),
+  })
 };
 
 const map = L.map('map', {
+  attributionControl: false, /*Mea culpa, cartographi!*/
   center: [52, 10],
   zoom: 4,
   minZoom: 3,
   worldCopyJump: false,
   zoomControl: true,
-  layers: [tileLayers.Standard],
+  layers: [tileLayers.Topographical],
 });
 
 L.control.layers(tileLayers, null, { position: 'topright', collapsed: true }).addTo(map);
@@ -882,9 +905,10 @@ function start() {
 
 function render() {
   const r = order[current];
-  $("round-counter").textContent = `Round ${current + 1} / ${order.length}`;
-  $("score-counter").textContent = `Score ${score}`;
-  $("progress-bar").style.width = `${(current / order.length) * 100}%`;
+  $("round-counter").textContent = `${current + 1} / ${order.length}`;
+  $("score-counter").textContent = `${score} pts`;
+  
+  updateProgressBar()
 
   const badge = $("type-badge");
   const protections = r.name_protections || [];
@@ -1044,6 +1068,9 @@ function handleClick(e) {
   $("info-where").textContent = r.where || "";
   $("info-where-sep").hidden = !r.where;
   $("info-desc").textContent = r.desc_long || r.desc || "";
+
+  current++;
+  updateProgressBar()
   renderFacts(r);
   renderSources(r);
 
@@ -1062,7 +1089,7 @@ function handleClick(e) {
   $("next-btn").hidden = false;
   map.getContainer().classList.add("answered");
   $("continue-hint").classList.add("visible");
-  $("score-counter").textContent = `Score ${score}`;
+  $("score-counter").textContent = `${score} pts`;
   $("next-btn").textContent = current === order.length - 1 ? "See Results" : "Next";
 
   if (!window.matchMedia("(max-width: 820px)").matches) {
@@ -1129,7 +1156,7 @@ function drawReveal(guess, target, r, verdictText, verdictCls) {
 }
 
 function next() {
-  current++;
+  /*current++;*/
   if (current >= order.length) showResult();
   else render();
 
@@ -1169,7 +1196,7 @@ function renderScoreboard(list) {
     country.textContent = e.country;
     const sc = document.createElement("span");
     sc.className = "score";
-    sc.textContent = `${e.score} / ${e.max}`;
+    sc.textContent = `${e.score}`;
     li.appendChild(country);
     li.appendChild(sc);
     ol.appendChild(li);
@@ -1180,7 +1207,7 @@ function showResult() {
   $("quiz").style.display = "none";
   $("result").classList.remove("hidden");
   const max = order.length * 100;
-  $("final-score").textContent = `${score} / ${max}`;
+  $("final-score").textContent = `${score}`;
 
   const previous = loadScoreboard();
   renderScoreboard(previous);
@@ -1245,7 +1272,6 @@ document.addEventListener("keydown", (e) => {
   if (e.code !== "Space" && e.key !== " ") return;
   if (!answered) return;
   if ($("lightbox").classList.contains("open")) return;
-  // Leave the country picker alone when it's open.
   const ae = document.activeElement;
   if (ae && (ae.tagName === "SELECT" || ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
   e.preventDefault();
